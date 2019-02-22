@@ -1,0 +1,1 @@
+cmd_/home/yuler/operation_experiment/exper_3/mydev.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000 -T ./scripts/module-common.lds  --build-id  -o /home/yuler/operation_experiment/exper_3/mydev.ko /home/yuler/operation_experiment/exper_3/mydev.o /home/yuler/operation_experiment/exper_3/mydev.mod.o ;  true
