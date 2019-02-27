@@ -5,17 +5,25 @@
 
 #define INFO_MAX_LEN 512
 #define PROC_MAX_LEN 128 
+typedef struct CPU_t{
+	unsigned int idle;
+	unsigned int total;
+}CPU;	
+typedef struct RAM_t{
+  long free;
+  long total; 
+}RAM;
+enum{
+  PID_COL,
+  NAME_COL,
+  STATE_COL,
+  PPID_COL,
+  PRIORITY_COL,
+  TAKEUP_COL,
+  N_COL
+};
 gboolean get_cur_time(gpointer data);
 
-  enum{
-    PID_COL,
-    NAME_COL,
-    STATE_COL,
-    PPID_COL,
-    PRIORITY_COL,
-    TAKEUP_COL,
-    N_COL
-  };
 // PC INFO
 char* get_cpu_name(char*);
 char* get_cpu_frequency(char*);
@@ -27,6 +35,7 @@ char* get_gcc_version(char*);
 gboolean get_running_info(gpointer data);
 
 // PROCESS
+gboolean get_total_proc(gpointer data);
 void get_proc_info(GtkListStore*);
 void refresh_proc(GtkListStore*);
 void kill_proc(void);
@@ -38,13 +47,23 @@ gboolean cpu_draw(gpointer widget);
 gboolean ram_draw_callback(GtkWidget* widget);
 gboolean ram_draw(gpointer widget);
 */
+int get_cpu_stat(CPU* cpu);
+gfloat _cal_cpu(CPU* a, CPU *b);
+gfloat cal_cpu_usage();
+gboolean get_cpu_usage(gpointer data);
 gboolean cpu_draw_callback(GtkWidget*, cairo_t*, gpointer);
+
+int get_ram_stat(RAM* ram);
+gfloat cal_ram_usage();
+gboolean get_ram_usage(gpointer data);
 gboolean ram_draw_callback(GtkWidget* , cairo_t *, gpointer );
 
 
 // ABOUT
 char* get_username_and_hostname(char*);
 
+gfloat cpu_usage_res = 0;
+gfloat ram_usage_res = 0;
 int main(){
   
   GtkWidget* window;
@@ -190,6 +209,10 @@ int main(){
 
   hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
 
+  label = gtk_label_new(NULL);
+  g_timeout_add(2000, get_total_proc, (void*)label);
+  gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
+
   button_1 = gtk_button_new_with_label("Kill");
   gtk_widget_set_size_request(button_1, 100, 35);
   g_signal_connect(button_1, "clicked",G_CALLBACK(kill_proc), NULL);
@@ -240,10 +263,6 @@ int main(){
   
   hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
 
-
-  label = gtk_label_new(NULL);
-  g_timeout_add(2000, get_total_proc, (void*)label);
-  gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
   label = gtk_label_new(NULL);
   g_timeout_add(2000, get_cpu_usage, (void*)label);
@@ -635,11 +654,7 @@ gboolean ram_draw(gpointer widget){
 }
 */
 
-typedef struct CPU_t{
-	unsigned int idle;
-	unsigned int total;
-}CPU;	
-int getCpuStat(CPU* cpu){
+int get_cpu_stat(CPU* cpu){
 	FILE *fr = fopen("/proc/stat", "r");
 	char name[256];
 	unsigned int a, b, c, idle, d, e, f, g, h;
@@ -648,7 +663,7 @@ int getCpuStat(CPU* cpu){
 	cpu->idle = idle;
 	cpu->total = a + b + c + d + e + f + g + h + idle;
 }
-gfloat calCpu(CPU* a, CPU *b){
+gfloat _cal_cpu(CPU* a, CPU *b){
 	unsigned int dif_total = b->total - a->total;
 	unsigned int dif_idle = b->idle - a->idle;
 	if(dif_total !=0){
@@ -657,23 +672,57 @@ gfloat calCpu(CPU* a, CPU *b){
 		return (gfloat)(0);	
 	}
 }
+gfloat cal_cpu_usage(){
+	static CPU cpu_1, cpu_2;
+  static int flag = 0;
+  gfloat res;
+
+	get_cpu_stat(&cpu_2);
+  if(flag = 0){
+    res = 0.0;
+    flag = 1;
+  }else{
+    res = _cal_cpu(&cpu_1, &cpu_2);
+  }
+  if(res > 1)  res = 1;
+  cpu_1 = cpu_2;
+
+  return res; 
+}
 
 gboolean get_cpu_usage(gpointer data){
-	CPU cpu_1, cpu_2;
-	getCpuStat((CPU*)&cpu_1);
-  sleep(1);
-	getCpuStat((CPU*)&cpu_2);
-	// printf("cpu_1: idle:%u total:%u\n", cpu_1.idle, cpu_1.total);
-	// printf("cpu_2: idle:%u total:%u\n", cpu_2.idle, cpu_2.total);
-	gfloat res = calCpu((CPU*)&cpu_1, (CPU*)&cpu_2);
-  // printf("%f\n", res);
-	gchar buf[32];	
-	g_snprintf(buf,8,"<span font_desc='12'> %.1f%%</span>",100*res); 
+  cpu_usage_res = cal_cpu_usage();
+	gchar buf[64];	
+	g_snprintf(buf,64,"<span font_desc='12'>cpu usage: %.1f%%</span>",100*cpu_usage_res); 
   gtk_label_set_markup(GTK_LABEL(data), buf);
   return TRUE;
 }
+gboolean get_total_proc(gpointer data){
+  int total = 0;
+  DIR* dp;
+  struct dirent *entry;
+  char buf[INFO_MAX_LEN];
+
+  dp = opendir("/proc");
+  while((entry = readdir(dp)) != NULL){
+    if((entry->d_name)[0] <'0' || (entry->d_name)[0] > '9') continue;
+      total++;
+  }
+  closedir(dp);
+  sprintf(buf, "<span font_desc='12'>total proc:%d</span>", total);
+  gtk_label_set_markup(GTK_LABEL(data), buf);
+  return TRUE;
+}
+
+// gboolean cpu_draw_callback(GtkWidget* widget, cairo_t* cr, gpointer data){
+  // g_timeout_add(1000, cpu_draw, cr, data);
+  // return TRUE;
+// }
 gboolean cpu_draw_callback(GtkWidget* widget, cairo_t *cr, gpointer data){
-  static pos = 500;
+  static int pos = 20;
+  static float cpu_usage[80];
+  static int counter = 0;
+  static int flag = 1;
   int i = 0;
   guint width, height;
   GdkRGBA color;
@@ -683,46 +732,160 @@ gboolean cpu_draw_callback(GtkWidget* widget, cairo_t *cr, gpointer data){
 
   width = gtk_widget_get_allocated_width (widget);
   height = gtk_widget_get_allocated_height (widget);
-
   gtk_render_background(context, cr, 0, 0, width, height);
+
   cairo_set_source_rgb(cr, 0.55, 0.5, 0.5);
-  for(i = 20; i < 200; i+=20){
+  for(i = 0; i < 200; i+=20){
     cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
     cairo_move_to (cr, 0, i);
     cairo_line_to (cr, 600, i);
     cairo_stroke (cr);
   }
-  for(i = 20; i < 600; i+=20){
+  for(i = 0; i < 600; i+=30){
     cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
     cairo_move_to (cr, i + pos, 0);
     cairo_line_to (cr, i + pos, 200);
     cairo_stroke (cr);
   }
-  pos -= 10;
-  if(pos == 0) pos = 500;
-
+  pos -= 4;
+  if(pos == 0) pos = 20;
+  if(flag){
+    flag = 0;
+    sleep(1);
+  
+  }
+  cpu_usage[counter] = cpu_usage_res;
+  // printf("%d : %f\n",counter, cpu_usage[counter]);
+  counter++;
+  if(counter == 80) counter = 0;
+  cairo_set_source_rgb(cr, 1, 0, 0);
+  
+  int tmp = counter;
+  for(i = 0; i < 79; i++){
+    cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
+    cairo_move_to (cr, 50 + i*6, 150 - cpu_usage[tmp%80]*150);
+    cairo_line_to (cr, 50 + (i+1)*6, 150 -cpu_usage[(tmp + 1)%80]*150);
+    cairo_stroke (cr);
+    tmp++;
+    if(tmp == 80) tmp = 0;
+  }
+  cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
+  cairo_move_to (cr, 50 + i*6, 150 - cpu_usage[tmp%80]*150);
+  cairo_line_to (cr, 50 + (i+1)*6, 150 - cpu_usage[tmp%80]*150);
+  cairo_stroke (cr);
  return FALSE;
 }
-
+int get_ram_stat(RAM* ram){
+  char _buf[INFO_MAX_LEN];
+  char* buf = _buf;
+  long MemTotal, MemFree, Buffers, Cached;
+	int i = 0;
+  int line = 1;
+  FILE* fp = fopen("/proc/meminfo", "r");
+	
+  while(fgets(buf, INFO_MAX_LEN, fp) != 0 && line < 6){ 
+    i = 0;
+    while(buf[i++] != ':');
+    buf += i;
+    i = 0;
+    while(buf[i++] == ' ');
+    i--;
+    buf += i;
+    i = 0;
+    while(buf[i++] != ' ');
+    buf[i - 1] = '\0';
+    // printf("%s\n",buf);
+    switch(line){
+      case 1:
+        MemTotal = atol(buf);
+        break;
+      case 2:
+        MemFree = atol(buf);
+        break;
+      case 4:
+        Buffers = atol(buf);
+        break;
+      case 5:
+        Cached = atol(buf);
+        break;
+      default:
+        break;
+    } 
+    line++;
+  }
+  fclose(fp);
+  ram->total =  MemTotal / 1024;
+  ram->free =  (MemFree + Buffers + Cached)/1024;
+}
+gfloat cal_ram_usage();
+gboolean get_ram_usage(gpointer data){
+  RAM ram;
+  get_ram_stat(&ram);
+  ram_usage_res = (ram.total - ram.free)/(float)ram.total;
+  // printf("%ldM/%ldM\n",ram.total - ram.free, ram.total);
+	gchar buf[64];	
+	g_snprintf(buf,64,"<span font_desc='12'>ram usage: %ldM/%ldM</span>",ram.total - ram.free, ram.total); 
+  gtk_label_set_markup(GTK_LABEL(data), buf);
+  return TRUE;
+}
 
 gboolean ram_draw_callback(GtkWidget* widget, cairo_t *cr, gpointer data){
+  static int pos = 20;
+  static float ram_usage[80];
+  static int counter = 0;
+  static int flag = 1;
+  int i = 0;
   guint width, height;
   GdkRGBA color;
   GtkStyleContext *context;
 
-  context = gtk_widget_get_style_context(widget);
+  context = gtk_widget_get_style_context (widget);
 
-  // width = gtk_widget_get_allocated_width (widget);
-  // height = gtk_widget_get_allocated_height (widget);
-  cairo_set_source_rgb (cr, 0.627, 0, 0);
-  cairo_select_font_face (cr, "Adobe Heiti Std", CAIRO_FONT_SLANT_NORMAL,
-                          CAIRO_FONT_WEIGHT_NORMAL);
-  cairo_set_font_size (cr, 24.0);
+  width = gtk_widget_get_allocated_width (widget);
+  height = gtk_widget_get_allocated_height (widget);
+  gtk_render_background(context, cr, 0, 0, width, height);
 
-  cairo_move_to (cr, 10.0, 34.0);
-  cairo_show_text (cr, "我是中国人，我爱我的祖国。");
-
-  return FALSE;
+  cairo_set_source_rgb(cr, 0.55, 0.5, 0.5);
+  for(i = 0; i < 200; i+=20){
+    cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
+    cairo_move_to (cr, 0, i);
+    cairo_line_to (cr, 600, i);
+    cairo_stroke (cr);
+  }
+  for(i = 0; i < 600; i+=30){
+    cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
+    cairo_move_to (cr, i + pos, 0);
+    cairo_line_to (cr, i + pos, 200);
+    cairo_stroke (cr);
+  }
+  pos -= 4;
+  if(pos == 0) pos = 20;
+  if(flag){
+    flag = 0;
+    sleep(1);
+  
+  }
+  // printf("ram_usage:%f\n",ram_usage_res);
+  ram_usage[counter] = ram_usage_res;
+  // printf("%d : %f\n",counter, cpu_usage[counter]);
+  counter++;
+  if(counter == 80) counter = 0;
+  cairo_set_source_rgb(cr, 1, 0, 0);
+  
+  int tmp = counter;
+  for(i = 0; i < 79; i++){
+    cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
+    cairo_move_to (cr, 50 + i*6, 150 - ram_usage[tmp%80]*150);
+    cairo_line_to (cr, 50 + (i+1)*6, 150 -ram_usage[(tmp + 1)%80]*150);
+    cairo_stroke (cr);
+    tmp++;
+    if(tmp == 80) tmp = 0;
+  }
+  cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
+  cairo_move_to (cr, 50 + i*6, 150 - ram_usage[tmp%80]*150);
+  cairo_line_to (cr, 50 + (i+1)*6, 150 -ram_usage[tmp%80]*150);
+  cairo_stroke (cr);
+ return FALSE;
 }
 
 
