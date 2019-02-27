@@ -10,9 +10,9 @@ int device_release(struct inode *inode, struct file *file);
 ssize_t device_read(struct file *file, char __user *user, size_t t, loff_t *f);
 ssize_t device_write(struct file *file, const char __user *user, size_t t, loff_t *f);
 
-const char* dev_name = "myDevice";
+const char* dev_name = "mydev";
 int device_major_id;
-char message[1024];
+char message[1024] = "test";
 struct file_operations pStruct =
 { 
 	open:device_open, 

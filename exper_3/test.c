@@ -12,9 +12,14 @@ int main(void)
 	int fd;
 	char buf[MAX_SIZE];	//缓冲区
 	char get[MAX_SIZE];	//要写入的信息
-	fd = open("/dev/myDevice", O_RDWR | O_NONBLOCK);
+	fd = open("/dev/mydev", O_RDWR | O_NONBLOCK);
 	if (fd != -1)
 	{
+
+		//读刚才写的信息
+		read(fd, buf, sizeof(buf)); 
+		printf("device Message: %s\n", buf);
+    
 		//写信息
 		printf("input :");
 		gets(get);

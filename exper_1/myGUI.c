@@ -1,5 +1,7 @@
 #include<gtk/gtk.h>
 #include<time.h>
+#include<sys/types.h>
+#include<sys/wait.h>
 #include<unistd.h>
 #include<stdio.h>
 gboolean settime(gpointer data){
@@ -47,7 +49,7 @@ int getCpuStat(CPU* cpu){
 	char name[256];
 	unsigned int a, b, c, idle, d, e, f, g, h;
 	fscanf(fr, "%s %u %u %u %u %u %u %u %u %u", name, &a, &b, &c, &idle, &d, &e, &f, &g, &h); 
-//	printf("%s %u %u %u %u %u %u %u %u %u\n", name, a, b, c, idle, d, e, f, g, h); 
+	// printf("%s %u %u %u %u %u %u %u %u %u\n", name, a, b, c, idle, d, e, f, g, h);
 	cpu->idle = idle;
 	cpu->total = a + b + c + d + e + f + g + h + idle;
 }
@@ -64,16 +66,17 @@ gfloat calCpu(CPU* a, CPU *b){
 gboolean setcpu(gpointer data){
 	CPU cpu_1, cpu_2;
 	getCpuStat((CPU*)&cpu_1);
-	sleep(1);
+  sleep(1);
 	getCpuStat((CPU*)&cpu_2);
-//	printf("cpu_1: idle:%u total:%u\n", cpu_1.idle, cpu_1.total);
-//	printf("cpu_2: idle:%u total:%u\n", cpu_2.idle, cpu_2.total);
+	// printf("cpu_1: idle:%u total:%u\n", cpu_1.idle, cpu_1.total);
+	// printf("cpu_2: idle:%u total:%u\n", cpu_2.idle, cpu_2.total);
 	gfloat res = calCpu((CPU*)&cpu_1, (CPU*)&cpu_2);
-//	printf("%f\n", res);
+  // printf("%f\n", res);
 	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(data), res);
 	gchar buf[8];	
 	g_snprintf(buf,8,"%.1f%%",100*res); 
 	gtk_progress_bar_set_text(GTK_PROGRESS_BAR(data), buf);		
+  return TRUE;
 }
 
 int showCPU(){
