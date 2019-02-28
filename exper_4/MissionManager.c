@@ -13,6 +13,10 @@ typedef struct RAM_t{
   long free;
   long total; 
 }RAM;
+typedef struct PARA_T{
+  GtkWidget* window;
+  GtkWidget* tree;
+}MyPara;
 enum{
   PID_COL,
   NAME_COL,
@@ -37,8 +41,10 @@ gboolean get_running_info(gpointer data);
 // PROCESS
 gboolean get_total_proc(gpointer data);
 void get_proc_info(GtkListStore*);
+gboolean close_popup_window(GtkWidget*, GdkEventFocus*, gpointer);
+void get_more_about_proc(MyPara*);
 void refresh_proc(GtkListStore*);
-void kill_proc(void);
+void kill_proc(MyPara*);
 
 // Perfomance
 /*
@@ -81,6 +87,7 @@ int main(){
   GtkWidget* scrolled_window;
   GtkWidget* button_1;
   GtkWidget* button_2;
+  GtkWidget* button_3;
   GtkWidget* drawing_area_1;
   GtkWidget* drawing_area_2;
   GtkWidget* tree;
@@ -89,6 +96,7 @@ int main(){
   GtkCellRenderer *renderer;
   GtkTreeViewColumn *column;
 
+   
   char buf[INFO_MAX_LEN];
   char buf1[INFO_MAX_LEN], buf2[INFO_MAX_LEN], buf3[INFO_MAX_LEN];
   char _buf1[INFO_MAX_LEN], _buf2[INFO_MAX_LEN], _buf3[INFO_MAX_LEN], _buf4[INFO_MAX_LEN];
@@ -183,22 +191,14 @@ int main(){
   renderer = gtk_cell_renderer_text_new();
   column = gtk_tree_view_column_new_with_attributes ("PID", renderer, "text", PID_COL,NULL);
   gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
-
   column = gtk_tree_view_column_new_with_attributes ("Name",renderer,"text", NAME_COL, NULL);
   gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
-
-  renderer = gtk_cell_renderer_text_new();
   column = gtk_tree_view_column_new_with_attributes ("State", renderer,"text", STATE_COL, NULL);
   gtk_tree_view_append_column (GTK_TREE_VIEW (tree), column);
-  renderer = gtk_cell_renderer_text_new();
   column = gtk_tree_view_column_new_with_attributes ("ppid", renderer, "text", PPID_COL,NULL);
   gtk_tree_view_append_column (GTK_TREE_VIEW (tree), column);
-
-  renderer = gtk_cell_renderer_text_new();
   column = gtk_tree_view_column_new_with_attributes ("priority", renderer, "text",PRIORITY_COL,NULL);
   gtk_tree_view_append_column (GTK_TREE_VIEW (tree), column);
-
-  renderer = gtk_cell_renderer_text_new();
   column = gtk_tree_view_column_new_with_attributes ("takeup", renderer, "text",TAKEUP_COL, NULL);
   gtk_tree_view_append_column (GTK_TREE_VIEW (tree), column);
 
@@ -213,15 +213,24 @@ int main(){
   g_timeout_add(2000, get_total_proc, (void*)label);
   gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
+  MyPara* para = malloc(sizeof(MyPara));
+  para->window = window;
+  para->tree = tree;
+
   button_1 = gtk_button_new_with_label("Kill");
   gtk_widget_set_size_request(button_1, 100, 35);
-  g_signal_connect(button_1, "clicked",G_CALLBACK(kill_proc), NULL);
+  g_signal_connect_swapped(button_1, "clicked",G_CALLBACK(kill_proc), para);
   gtk_box_pack_end(GTK_BOX(hbox), button_1, FALSE, FALSE, 10);
 
   button_2 = gtk_button_new_with_label("Refresh");
   gtk_widget_set_size_request(button_2, 100, 35);
   g_signal_connect_swapped(button_2, "clicked", G_CALLBACK(refresh_proc), store);  
   gtk_box_pack_end(GTK_BOX(hbox), button_2, FALSE, FALSE, 10);
+
+  button_3 = gtk_button_new_with_label("More");
+  gtk_widget_set_size_request(button_3, 100, 35);
+  g_signal_connect_swapped(button_3, "clicked", G_CALLBACK(get_more_about_proc), para);  
+  gtk_box_pack_end(GTK_BOX(hbox), button_3, FALSE, FALSE, 10);
   gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 10);
 
   label = gtk_label_new("Process");
@@ -265,11 +274,11 @@ int main(){
 
 
   label = gtk_label_new(NULL);
-  g_timeout_add(2000, get_cpu_usage, (void*)label);
+  g_timeout_add(1000, get_cpu_usage, (void*)label);
   gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
   label = gtk_label_new(NULL);
-  g_timeout_add(2000, get_ram_usage, (void*)label);
+  g_timeout_add(1000, get_ram_usage, (void*)label);
   gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
   gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 10);
 
@@ -314,6 +323,7 @@ gboolean get_cur_time(gpointer data){
 	p = localtime(&timep);
 	gchar *string_time = g_strdup_printf("<span foreground='red' font_desc='12'>%02d:%02d:%02d</span>", p->tm_hour, p->tm_min, p->tm_sec);
 	gtk_label_set_markup(GTK_LABEL(data), string_time);
+  g_free(string_time);
 	return TRUE;	
 }
 char* get_cpu_name(char* _buf){
@@ -503,6 +513,7 @@ gboolean get_running_info(gpointer data){
     "<span  font_desc='12'>boot time: %02d:%02d:%02d\n\nuptime: %02d:%02d:%02d</span>",\
     q->tm_hour, q->tm_min, q->tm_sec, h, m, s);
 	gtk_label_set_markup(GTK_LABEL(data), string_time);
+  g_free(string_time);
   return TRUE;
 }
 void get_proc_info(GtkListStore* store){
@@ -584,6 +595,9 @@ void get_proc_info(GtkListStore* store){
     gtk_list_store_set(store, &iter, PID_COL, list[0], NAME_COL, list[1], STATE_COL, list[2],\
       PPID_COL, list[3], PRIORITY_COL, list[4], TAKEUP_COL, list[5], -1);
     fclose(fp);
+    for(i = 0; i < 6; i++){
+      g_free(list[i]);
+    }
   }
   closedir(dp);
 }
@@ -593,10 +607,171 @@ void refresh_proc(GtkListStore* store){
   get_proc_info(store);
 }
 
-void kill_proc(void){
+void kill_proc(MyPara* para){
+ GtkTreeSelection* selection;
+ GtkTreeModel* model;
+ GtkTreeIter iter;
 
+ GtkWidget* tree = para->tree;
+ GtkWidget* window = para->window;
+
+ GtkWidget* dialog;
+
+ selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+
+ if(gtk_tree_selection_get_selected(selection, &model, &iter)){
+  gchar* pid;
+  gchar* name;
+  gtk_tree_model_get(model, &iter, PID_COL, &pid, NAME_COL, &name, -1);
+  dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+          GTK_DIALOG_DESTROY_WITH_PARENT,
+          GTK_MESSAGE_QUESTION,
+          GTK_BUTTONS_YES_NO,
+          "Are you sure that you want to kill %s?", name);
+  gtk_window_set_title(GTK_WINDOW(dialog), "Confirm");
+  int result = gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+  if(result == GTK_RESPONSE_YES){
+    char kill_cmd[20];
+    sprintf(kill_cmd, "kill -9 %s", pid);
+    if(system(kill_cmd) != -1){
+       dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+            GTK_DIALOG_DESTROY_WITH_PARENT,
+            GTK_MESSAGE_WARNING,
+            GTK_BUTTONS_OK,
+            "kill %s success!",name);
+      gtk_window_set_title(GTK_WINDOW(dialog), "Warning!");
+      gtk_dialog_run(GTK_DIALOG(dialog));
+      gtk_widget_destroy(dialog);
+    }
+  }
+  g_free(pid);
+  g_free(name);
+ }else{
+  dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+            GTK_DIALOG_DESTROY_WITH_PARENT,
+            GTK_MESSAGE_WARNING,
+            GTK_BUTTONS_OK,
+            "Nothing is selected");
+  gtk_window_set_title(GTK_WINDOW(dialog), "Warning!");
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+ }
 }
+gboolean close_popup_window(GtkWidget* widget, GdkEventFocus* event, gpointer data){
+  gtk_widget_destroy(data);
+  return TRUE;
+}
+void get_more_about_proc(MyPara* para){
+ enum{KEY_COL, VAL_COL, NUM_COL};
+ GtkTreeSelection* selection;
+ GtkTreeModel* model;
+ GtkTreeIter pre_iter;
 
+ GtkWidget* pre_tree = para->tree;
+ GtkWidget* pre_window = para->window;
+ GtkWidget* popup_window;
+
+ GtkWidget* label;
+ GtkWidget* dialog;
+ GtkWidget* scrolled_window;
+ GtkWidget* vbox;
+ GtkWidget* tree;
+ GtkWidget* button;
+ 
+ GtkListStore* store;
+ GtkTreeViewColumn* column;
+ GtkCellRenderer* renderer; 
+ GtkTreeIter iter;
+
+
+ char* information; 
+
+ selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(pre_tree));
+ if(gtk_tree_selection_get_selected(selection, &model, &pre_iter)){
+  char information[INFO_MAX_LEN];
+  char* buf = information;
+  char path[32];
+  char title[32];
+  char key[INFO_MAX_LEN];
+  char val[INFO_MAX_LEN];
+  int i = 0;
+  int t = 0;
+  gchar* pid;
+  gchar* name;
+  gtk_tree_model_get(model, &pre_iter, PID_COL, &pid, NAME_COL, &name, -1);
+
+  sprintf(path, "/proc/%s/status", pid);
+  sprintf(title, "More about %s", name);
+
+  popup_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_title(GTK_WINDOW(popup_window), title);
+  gtk_widget_set_size_request (popup_window, 500, 500);
+  gtk_window_set_transient_for (GTK_WINDOW (popup_window), GTK_WINDOW (pre_window));
+  gtk_window_set_position (GTK_WINDOW (popup_window), GTK_WIN_POS_CENTER);
+
+  scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+  gtk_widget_set_size_request(scrolled_window, 450, 450);
+  button = gtk_button_new_with_label("close");
+  gtk_widget_set_size_request(button, 100, 35);
+  g_signal_connect(button, "clicked",G_CALLBACK(close_popup_window), popup_window);
+
+  gtk_box_pack_end(GTK_BOX(vbox), button, FALSE, FALSE, 10);
+
+
+  store = gtk_list_store_new(NUM_COL, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+  tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+
+  gtk_container_add(GTK_CONTAINER(scrolled_window), tree);
+  gtk_box_pack_start(GTK_BOX(vbox), scrolled_window, FALSE, FALSE, 0);
+  gtk_container_add(GTK_CONTAINER(popup_window), vbox);
+  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),GTK_POLICY_AUTOMATIC,GTK_POLICY_AUTOMATIC);
+
+  FILE* fp = fopen(path, "r");
+  while(fgets(buf, 1024, fp) != NULL){
+    i = 0;
+    while(buf[i++] != ':');
+    buf[i-1] = '\0';
+    strcpy(key, buf);
+    buf += i;
+    i = 0;
+    while(buf[i++] == ' ');
+    i--;
+    buf += i;
+    i = 0;
+    while(buf[i++] != '\n');
+    buf[i-1] = '\0';
+    strcpy(val, buf);
+    // printf("%d  %s :: %s\n",t, key, val);
+    gtk_list_store_append(store, &iter) ;
+    gtk_list_store_set(store, &iter, KEY_COL, key, VAL_COL, val, -1 );
+    t++;
+  }
+  
+  // 添加列名称
+  renderer = gtk_cell_renderer_text_new();
+  column = gtk_tree_view_column_new_with_attributes ("Key", renderer, "text", KEY_COL,NULL);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
+  column = gtk_tree_view_column_new_with_attributes ("Value",renderer,"text", VAL_COL, NULL);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
+  gtk_widget_set_events (popup_window, GDK_FOCUS_CHANGE_MASK);
+
+  gtk_widget_show_all (popup_window);
+  g_free(pid);
+  g_free(name);
+  fclose(fp);
+ }else{
+  dialog = gtk_message_dialog_new(GTK_WINDOW(pre_window),
+            GTK_DIALOG_DESTROY_WITH_PARENT,
+            GTK_MESSAGE_WARNING,
+            GTK_BUTTONS_OK,
+            "Nothing is selected");
+  gtk_window_set_title(GTK_WINDOW(dialog), "Warning!");
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+ }
+}
 char* get_username_and_hostname(char* _buf){
   char buf1[INFO_MAX_LEN], buf2[INFO_MAX_LEN];
   char* buf = _buf;  
@@ -618,42 +793,6 @@ char* get_username_and_hostname(char* _buf){
   sprintf(buf, "%s@%s", buf2, buf1);
   return buf;
 }
-/*
-gboolean cpu_draw_callback(GtkWidget *widget, cairo_t *cr, gpointer data){
-  g_timeout_add(1000, cpu_draw, (void*)widget);
-  return TRUE;
-}
-
-gboolean cpu_draw(gpointer widget){
-        cairo_t *cr;
-        cr = gdk_cairo_create (widget->window);
-
-        cairo_set_source_rgb (cr, 0.627, 0, 0);
-        cairo_select_font_face (cr, "Adobe Heiti Std", CAIRO_FONT_SLANT_NORMAL,
-                                CAIRO_FONT_WEIGHT_NORMAL);
-        cairo_set_font_size (cr, 24.0);
-
-        cairo_move_to (cr, 10.0, 34.0);
-        cairo_show_text (cr, "我是中国人，我爱我的祖国。");
-
-        cairo_destroy (cr);
-
-        return FALSE;
-}
-
-
-}
-
-gboolean ram_draw_callback(GtkWidget* widget){
-  g_timeout_add(1000, ram_draw, (void*)widget);
-  return TRUE;
-}
-
-gboolean ram_draw(gpointer widget){
-
-}
-*/
-
 int get_cpu_stat(CPU* cpu){
 	FILE *fr = fopen("/proc/stat", "r");
 	char name[256];
@@ -692,9 +831,9 @@ gfloat cal_cpu_usage(){
 
 gboolean get_cpu_usage(gpointer data){
   cpu_usage_res = cal_cpu_usage();
-	gchar buf[64];	
-	g_snprintf(buf,64,"<span font_desc='12'>cpu usage: %.1f%%</span>",100*cpu_usage_res); 
+	gchar* buf = g_strdup_printf("<span font_desc='12'>cpu usage: %.1f%%</span>",100*cpu_usage_res); 
   gtk_label_set_markup(GTK_LABEL(data), buf);
+  g_free(buf);
   return TRUE;
 }
 gboolean get_total_proc(gpointer data){
@@ -763,15 +902,15 @@ gboolean cpu_draw_callback(GtkWidget* widget, cairo_t *cr, gpointer data){
   int tmp = counter;
   for(i = 0; i < 79; i++){
     cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
-    cairo_move_to (cr, 50 + i*6, 150 - cpu_usage[tmp%80]*150);
-    cairo_line_to (cr, 50 + (i+1)*6, 150 -cpu_usage[(tmp + 1)%80]*150);
+    cairo_move_to (cr, 50 + i*6, 140 - cpu_usage[tmp%80]*140);
+    cairo_line_to (cr, 50 + (i+1)*6, 140 -cpu_usage[(tmp + 1)%80]*140);
     cairo_stroke (cr);
     tmp++;
     if(tmp == 80) tmp = 0;
   }
   cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
-  cairo_move_to (cr, 50 + i*6, 150 - cpu_usage[tmp%80]*150);
-  cairo_line_to (cr, 50 + (i+1)*6, 150 - cpu_usage[tmp%80]*150);
+  cairo_move_to (cr, 50 + i*6, 140 - cpu_usage[tmp%80]*140);
+  cairo_line_to (cr, 50 + (i+1)*6, 140 - cpu_usage[tmp%80]*140);
   cairo_stroke (cr);
  return FALSE;
 }
@@ -783,7 +922,7 @@ int get_ram_stat(RAM* ram){
   int line = 1;
   FILE* fp = fopen("/proc/meminfo", "r");
 	
-  while(fgets(buf, INFO_MAX_LEN, fp) != 0 && line < 6){ 
+  while(fgets(buf, INFO_MAX_LEN, fp) != NULL && line < 6){ 
     i = 0;
     while(buf[i++] != ':');
     buf += i;
@@ -823,9 +962,9 @@ gboolean get_ram_usage(gpointer data){
   get_ram_stat(&ram);
   ram_usage_res = (ram.total - ram.free)/(float)ram.total;
   // printf("%ldM/%ldM\n",ram.total - ram.free, ram.total);
-	gchar buf[64];	
-	g_snprintf(buf,64,"<span font_desc='12'>ram usage: %ldM/%ldM</span>",ram.total - ram.free, ram.total); 
+	gchar* buf = g_strdup_printf("<span font_desc='12'>ram usage: %ldM/%ldM</span>",ram.total - ram.free, ram.total); 
   gtk_label_set_markup(GTK_LABEL(data), buf);
+  g_free(buf);
   return TRUE;
 }
 
@@ -875,15 +1014,15 @@ gboolean ram_draw_callback(GtkWidget* widget, cairo_t *cr, gpointer data){
   int tmp = counter;
   for(i = 0; i < 79; i++){
     cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
-    cairo_move_to (cr, 50 + i*6, 150 - ram_usage[tmp%80]*150);
-    cairo_line_to (cr, 50 + (i+1)*6, 150 -ram_usage[(tmp + 1)%80]*150);
+    cairo_move_to (cr, 50 + i*6, 140 - ram_usage[tmp%80]*140);
+    cairo_line_to (cr, 50 + (i+1)*6, 140 -ram_usage[(tmp + 1)%80]*140);
     cairo_stroke (cr);
     tmp++;
     if(tmp == 80) tmp = 0;
   }
   cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
-  cairo_move_to (cr, 50 + i*6, 150 - ram_usage[tmp%80]*150);
-  cairo_line_to (cr, 50 + (i+1)*6, 150 -ram_usage[tmp%80]*150);
+  cairo_move_to (cr, 50 + i*6, 140 - ram_usage[tmp%80]*140);
+  cairo_line_to (cr, 50 + (i+1)*6, 140 -ram_usage[tmp%80]*140);
   cairo_stroke (cr);
  return FALSE;
 }
