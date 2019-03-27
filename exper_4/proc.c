@@ -23,6 +23,13 @@ void get_proc_info(GtkWidget* clist);
 void refresh_proc(GtkWidget* clist);
 void kill_proc(void);
 
+// Perfomance
+gboolean cpu_draw_callback(GtkWidget* widget);
+gboolean cpu_draw(gpointer widget);
+gboolean ram_draw_callback(GtkWidget* widget);
+gboolean ram_draw(gpointer widget);
+
+
 
 // ABOUT
 char* get_username_and_hostname(char*);
@@ -45,6 +52,8 @@ int main(){
   GtkWidget* clist;
   GtkWidget* button_1;
   GtkWidget* button_2;
+  GtkWidget* drawing_area_1;
+  GtkWidget* drawing_area_2;
 
   char buf[INFO_MAX_LEN];
   char buf1[INFO_MAX_LEN], buf2[INFO_MAX_LEN], buf3[INFO_MAX_LEN];
@@ -61,7 +70,7 @@ int main(){
 	g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
   // gtk_container_set_border_width(GTK_CONTAINER(window), 10);
  
-  vbox = gtk_vbox_new(FALSE, 5);
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
   // gtk_widget_set_size_request(vbox,)
   gtk_container_add(GTK_CONTAINER(window), vbox);
 
@@ -93,7 +102,7 @@ int main(){
 
 
   //*****************第一个标签页, 系统信息
-  vbox = gtk_vbox_new(FALSE, 5);
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 
   label = gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(label), "<span font_desc='14'>os info</span>");
@@ -138,7 +147,7 @@ int main(){
 
 
   //******************第二个标签页, 进程信息
-  vbox = gtk_vbox_new(FALSE, 5);
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
   scrolled_window = gtk_scrolled_window_new(NULL, NULL);
   clist = gtk_clist_new(6);
   get_proc_info(clist);
@@ -146,7 +155,7 @@ int main(){
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrolled_window), (gpointer)clist); 
   gtk_box_pack_start(GTK_BOX(vbox), scrolled_window, TRUE, TRUE, 5);
 
-  hbox = gtk_hbox_new(FALSE, 10);
+  hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
 
   button_1 = gtk_button_new_with_label("Kill");
   gtk_widget_set_size_request(button_1, 100, 35);
@@ -163,13 +172,46 @@ int main(){
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
 
   //**************************第三个标签页,Performance 
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+  gtk_widget_set_size_request(vbox, 400, 300);
+
+  label = gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<span font_desc='14'>CPU</span>");
+  frame_1 = gtk_frame_new(NULL);
+  gtk_frame_set_label_widget(GTK_FRAME(frame_1), label);
+  gtk_frame_set_label_align(GTK_FRAME(frame_1), 0.5, 0.5);
+  drawing_area_1 = gtk_drawing_area_new();
+  gtk_widget_set_size_request(drawing_area_1, 100, 150);
+  g_signal_connect(G_OBJECT(drawing_area_1), "expose_event", G_CALLBACK(cpu_draw_callback), NULL);
+  gtk_container_add(GTK_CONTAINER(frame_1), drawing_area_1);
+
+  label = gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<span font_desc='14'>RAM</span>");
+  frame_2 = gtk_frame_new(NULL);
+  gtk_frame_set_label_widget(GTK_FRAME(frame_2), label);
+  gtk_frame_set_label_align(GTK_FRAME(frame_2), 0.5, 0.5);
+  drawing_area_2 = gtk_drawing_area_new();
+  gtk_widget_set_size_request(drawing_area_2, 100, 150);
+  g_signal_connect(G_OBJECT(drawing_area_2), "expose_event", G_CALLBACK(ram_draw_callback), NULL);
+  gtk_container_add(GTK_CONTAINER(frame_2), drawing_area_2);
+
+  hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+  
+  gtk_box_pack_start(GTK_BOX(vbox), frame_1, FALSE, FALSE, 10);
+  gtk_box_pack_start(GTK_BOX(vbox), frame_2, FALSE, FALSE, 10);
+  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 10);
+
+
+  
+  hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+
   GtkWidget *frame_4 = gtk_frame_new(NULL);
   label = gtk_label_new("Performance");
 
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame_4, label);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
 
   // 第四个标签页, About
-  vbox = gtk_vbox_new(FALSE, 5);
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 
 
   fixed = gtk_fixed_new();
@@ -521,6 +563,27 @@ char* get_username_and_hostname(char* _buf){
   sprintf(buf, "%s@%s", buf2, buf1);
   return buf;
 }
+
+gboolean cpu_draw_callback(GtkWidget* widget){
+  g_timeout_add(1000, cpu_draw, (void*)widget);
+  return TRUE;
+}
+
+gboolean cpu_draw(gpointer widget){
+
+
+}
+
+gboolean ram_draw_callback(GtkWidget* widget){
+  g_timeout_add(1000, ram_draw, (void*)widget);
+  return TRUE;
+}
+
+gboolean ram_draw(gpointer widget){
+
+}
+
+
 
 
 

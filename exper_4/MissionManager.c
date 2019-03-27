@@ -27,7 +27,6 @@ enum{
   N_COL
 };
 gboolean get_cur_time(gpointer data);
-
 // PC INFO
 char* get_cpu_name(char*);
 char* get_cpu_frequency(char*);
@@ -38,7 +37,7 @@ char* get_kernel_version(char*);
 char* get_gcc_version(char*);
 gboolean get_running_info(gpointer data);
 
-// PROCESS
+// Process
 gboolean get_total_proc(gpointer data);
 void get_proc_info(GtkListStore*);
 gboolean close_popup_window(GtkWidget*, GdkEventFocus*, gpointer);
@@ -47,12 +46,6 @@ void refresh_proc(GtkListStore*);
 void kill_proc(MyPara*);
 
 // Perfomance
-/*
-gboolean cpu_draw_callback(GtkWidget* widget);
-gboolean cpu_draw(gpointer widget);
-gboolean ram_draw_callback(GtkWidget* widget);
-gboolean ram_draw(gpointer widget);
-*/
 int get_cpu_stat(CPU* cpu);
 gfloat _cal_cpu(CPU* a, CPU *b);
 gfloat cal_cpu_usage();
@@ -65,11 +58,13 @@ gboolean get_ram_usage(gpointer data);
 gboolean ram_draw_callback(GtkWidget* , cairo_t *, gpointer );
 
 
+void shutdown_now(GtkWindow*);
 // ABOUT
 char* get_username_and_hostname(char*);
 
 gfloat cpu_usage_res = 0;
 gfloat ram_usage_res = 0;
+
 int main(){
   
   GtkWidget* window;
@@ -85,6 +80,7 @@ int main(){
   GtkWidget* frame_2;
   GtkWidget* frame_3;
   GtkWidget* scrolled_window;
+  GtkWidget* button;
   GtkWidget* button_1;
   GtkWidget* button_2;
   GtkWidget* button_3;
@@ -96,12 +92,9 @@ int main(){
   GtkCellRenderer *renderer;
   GtkTreeViewColumn *column;
 
-   
   char buf[INFO_MAX_LEN];
   char buf1[INFO_MAX_LEN], buf2[INFO_MAX_LEN], buf3[INFO_MAX_LEN];
   char _buf1[INFO_MAX_LEN], _buf2[INFO_MAX_LEN], _buf3[INFO_MAX_LEN], _buf4[INFO_MAX_LEN];
-  
-  
 
 	gtk_init(NULL, NULL);
 	// 创建窗口、笔记本
@@ -120,20 +113,21 @@ int main(){
   sprintf(buf,"<span foreground='red' font_desc='12'>%s</span>", get_username_and_hostname(buf1));
   gtk_label_set_markup(GTK_LABEL(label), buf);
   fixed = gtk_fixed_new();
+  button = gtk_button_new_with_label("shutdown");
+  gtk_widget_set_size_request(button, 60, 40);
+
+  g_signal_connect_swapped(button, "clicked",G_CALLBACK(shutdown_now), window);
+  //g_signal_connect_swapped(button, "clicked", G_CALLBACK(shutdown), window);
   gtk_box_pack_end(GTK_BOX(vbox), fixed, FALSE, FALSE, 0);
   gtk_fixed_put(GTK_FIXED(fixed), label, 0, 0);
   gtk_fixed_put(GTK_FIXED(fixed), label_time, 0, 20);
-  // table = gtk_table_new(10, 8, FALSE);
-  // gt//ik_container_add(GTK_CONTAINER(window), table);
-  // gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
-  // gtk_container_siijet_border_width(GTK_CONTAINER(table), 20);
+  gtk_fixed_put(GTK_FIXED(fixed), button, 550, 0);
+
   notebook = gtk_notebook_new(); 
   gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_TOP);
   gtk_box_pack_start(GTK_BOX(vbox), notebook, FALSE, FALSE, 0);
   gtk_container_set_border_width(GTK_CONTAINER(notebook), 25);
   
-
-
 
   //*****************第一个标签页, 系统信息
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
@@ -149,7 +143,7 @@ int main(){
 	gtk_label_set_markup(GTK_LABEL(label), buf);
   gtk_container_add(GTK_CONTAINER(frame_1), label);
   gtk_frame_set_label_align(GTK_FRAME(frame_1), 0.5, 0.5);
-
+  
   label = gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(label), "<span font_desc='14'>cpu info</span>");
   frame_2 = gtk_frame_new(NULL);
@@ -172,9 +166,9 @@ int main(){
   g_timeout_add(1000, get_running_info, (void*)label);
   gtk_container_add(GTK_CONTAINER(frame_3), label);
   gtk_frame_set_label_align(GTK_FRAME(frame_3), 0.5, 0.5);
-  gtk_box_pack_start(GTK_BOX(vbox), frame_1, FALSE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), frame_3, FALSE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), frame_2, FALSE, FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(vbox), frame_1, FALSE, FALSE, 10);
+  gtk_box_pack_start(GTK_BOX(vbox), frame_3, FALSE, FALSE, 10);
+  gtk_box_pack_start(GTK_BOX(vbox), frame_2, FALSE, FALSE, 10);
 
   label = gtk_label_new("PC Info");
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
@@ -205,7 +199,6 @@ int main(){
   gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),GTK_POLICY_AUTOMATIC,GTK_POLICY_AUTOMATIC);
   gtk_container_add(GTK_CONTAINER(scrolled_window), tree);
   gtk_box_pack_start(GTK_BOX(vbox), scrolled_window, TRUE, TRUE, 5);
-  // gtk_box_pack_start(GTK_BOX(vbox), tree, FALSE, FALSE, 5);
 
   hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
 
@@ -236,6 +229,7 @@ int main(){
   label = gtk_label_new("Process");
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
 
+
   //**************************第三个标签页,Performance 
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
   gtk_widget_set_size_request(vbox, 200, 300);
@@ -245,7 +239,7 @@ int main(){
   frame_1 = gtk_frame_new(NULL);
   gtk_frame_set_label_widget(GTK_FRAME(frame_1), label);
   gtk_frame_set_label_align(GTK_FRAME(frame_1), 0.5, 0.5);
-  // drawing_area_1 = gtk_window_new() ;
+
   drawing_area_1 = gtk_drawing_area_new();
   gtk_widget_set_size_request(drawing_area_1, 100, 160);
   g_signal_connect(G_OBJECT(drawing_area_1), "draw", G_CALLBACK(cpu_draw_callback), NULL);
@@ -256,7 +250,7 @@ int main(){
   frame_2 = gtk_frame_new(NULL);
   gtk_frame_set_label_widget(GTK_FRAME(frame_2), label);
   gtk_frame_set_label_align(GTK_FRAME(frame_2), 0.5, 0.5);
-  // drawing_area_2 = gtk_window_new();
+
   drawing_area_2 = gtk_drawing_area_new();
   gtk_widget_set_size_request(drawing_area_2, 100, 160);
   g_signal_connect(G_OBJECT(drawing_area_2), "draw", G_CALLBACK(ram_draw_callback), NULL);
@@ -268,10 +262,7 @@ int main(){
   gtk_box_pack_start(GTK_BOX(vbox), frame_2, FALSE, FALSE, 10);
   gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 10);
 
-
-  
   hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-
 
   label = gtk_label_new(NULL);
   g_timeout_add(1000, get_cpu_usage, (void*)label);
@@ -282,11 +273,11 @@ int main(){
   gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
   gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 10);
 
-  
   label = gtk_label_new("Performance");
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
 
-  // 第四个标签页, About
+
+  //********************** 第四个标签页, About
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 
 
@@ -295,19 +286,19 @@ int main(){
 
   label = gtk_label_new(NULL);
   gtk_label_set_markup(GTK_LABEL(label), "<span font_desc='14'>@Author: zyh.p1at0@gmail.com</span>");
-  gtk_fixed_put(GTK_FIXED(fixed), label, 170, 100);
-
-  label = gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(label), "<span font_desc='14'>@LastModified: 2019-02-25</span>");
   gtk_fixed_put(GTK_FIXED(fixed), label, 170, 160);
 
   label = gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(label), "<span font_desc='14'>Coypright (c) 2019</span>");
-  gtk_fixed_put(GTK_FIXED(fixed), label, 200, 220);
+  gtk_label_set_markup(GTK_LABEL(label), "<span font_desc='14'>@LastModified: 2019-02-25</span>");
+  gtk_fixed_put(GTK_FIXED(fixed), label, 170, 240);
 
+  label = gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(label), "<span font_desc='14'>Coypright (c) 2019</span>");
+  gtk_fixed_put(GTK_FIXED(fixed), label, 210, 320);
 
   label = gtk_label_new("About");
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
+
 
 	//  显示所有内容
 	gtk_widget_show_all(window);
@@ -315,7 +306,21 @@ int main(){
   gtk_main();
 
   return 0;
-}	
+}
+void shutdown_now(GtkWindow* window){
+  GtkWidget* dialog;
+  dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+          GTK_DIALOG_DESTROY_WITH_PARENT,
+          GTK_MESSAGE_QUESTION,
+          GTK_BUTTONS_YES_NO,
+          "Are you sure that you want to shutdown?");
+  gtk_window_set_title(GTK_WINDOW(dialog), "Confirm");
+  int result = gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+  if(result == GTK_RESPONSE_YES){
+    system("shutdown now");
+  }
+}
 gboolean get_cur_time(gpointer data){
 	time_t timep;
 	struct tm *p;
@@ -1026,33 +1031,3 @@ gboolean ram_draw_callback(GtkWidget* widget, cairo_t *cr, gpointer data){
   cairo_stroke (cr);
  return FALSE;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
